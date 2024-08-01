@@ -6,7 +6,6 @@ const twilio = require('twilio');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const retry = require('retry');
-
 const client = twilio(accountSID, authToken);
 
 const otpRequestLimiter = rateLimit({
@@ -112,16 +111,48 @@ router.post('/email', async (req, res) => {
 
 
 
-
 router.post('/name', async (req, res) => {
-  const { phoneNumber, firstName, lastName } = req.body;
+  const { userId, firstName, lastName } = req.body;
   try {
-    const result = await User.updateOne({ phoneNumber }, { firstName, lastName });
-    console.log('Name updated result:', result);
-    res.json({ message: 'Name updated' });
+    // Find user by _id
+    const user = await User.findById(userId);
+    if (user) {
+      user.firstName = firstName;
+      user.lastName = lastName;
+      await user.save();
+      res.status(200).json({ message: 'Name updated successfully', redirect: '/security-code' });
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
   } catch (error) {
     console.error('Failed to update name:', error);
     res.status(500).json({ error: 'Failed to update name' });
+  }
+});
+
+
+router.post('/security-code', async (req, res) => {
+  const { userId, securityCode } = req.body;
+
+  if (!userId || securityCode === undefined) {
+    return res.status(400).json({ error: 'User ID and security code are required.' });
+  }
+  const parsedCode = Number(securityCode);
+  if (isNaN(parsedCode)) {
+    return res.status(400).json({ error: 'Security code must be a valid number.' });
+  }
+  try {
+    const user = await User.findById(userId);
+    if (user) {
+      user.securityCode = parsedCode; // Store the code as a number
+      await user.save();
+      res.status(200).json({ message: 'Security code saved successfully', redirect: '/' });
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Failed to update security code:', error);
+    res.status(500).json({ error: 'Failed to update security code' });
   }
 });
 
