@@ -56,6 +56,7 @@ router.post('/mobile', otpRequestLimiter, (req, res) => {
   });
 });
 
+
 router.post('/otp', async (req, res) => {
   const { otp, userNumber } = req.body;
   const formattedPhoneNumber = userNumber.startsWith('+') ? userNumber : `+${userNumber}`;
@@ -75,7 +76,7 @@ router.post('/otp', async (req, res) => {
       user = new User({ phoneNumber: formattedPhoneNumber });
       await user.save();
       console.log('New user created:', user);
-      return res.json({ valid: true, newUser: true, redirect: '/email', message: 'User created, proceed to email' });
+      return res.json({ valid: true, newUser: true, userId: user._id, redirect: '/email', message: 'User created, proceed to email' });
     } else {
       const token = jwt.sign({ id: user._id }, 'your_jwt_secret_key', { expiresIn: '1h' });
       console.log('Existing user found, token generated:', token);
@@ -88,39 +89,28 @@ router.post('/otp', async (req, res) => {
 });
 
 
-// router.post('/email', async (req, res) => {
-//   const { phoneNumber, email } = req.body;
-//   try {
-//     let user = await User.findOne({ phoneNumber });
-//     if (user) {
-//       user.email = email;
-//       await user.save();
-//       console.log('Email updated successfully for user:', user);
-//       res.status(200).json({ message: 'Email updated successfully' });
-//     } else {
-//       console.log('User not found for phone number:', phoneNumber);
-//       res.status(404).json({ error: 'User not found' });
-//     }
-//   } catch (error) {
-//     console.error('Failed to update email:', error);
-//     res.status(500).json({ error: 'Failed to update email' });
-//   }
-// });
+
 
 router.post('/email', async (req, res) => {
-  const {email } = req.body;
-  console.log("phone number indd pullae "+ email);
+  const { userId, email } = req.body;
   try {
-     let user = new User({ email });
+    let user = await User.findById(userId);
+    if (user) {
+      user.email = email;
       await user.save();
-      console.log('New user created:', user);
-      res.status(200).json({ message: 'Email created and user registered successfully'});
-    
+      console.log('Email updated successfully for user:', user);
+      res.status(200).json({ message: 'Email updated successfully', redirect: '/name' });
+    } else {
+      console.log('User not found for ID:', userId);
+      res.status(404).json({ error: 'User not found' });
+    }
   } catch (error) {
-    console.error('Failed to create or update email:', error);
-    res.status(500).json({ error: 'Failed to create or update email' });
+    console.error('Failed to update email:', error);
+    res.status(500).json({ error: 'Failed to update email' });
   }
 });
+
+
 
 
 router.post('/name', async (req, res) => {
